@@ -51,7 +51,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         return;
       }
   
-      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: "1h" });
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: "7d" });
   
       res.status(200).json({ message: "Đăng nhập thành công", token, user: { id: user.id, email: user.email, username: user.username } });
     } catch (error) {
