@@ -5,6 +5,7 @@ import { format } from "util";
 import path from "path";
 import dotenv from "dotenv";
 import pool from "../config/db"; // Import kết nối DB
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 dotenv.config();
 
@@ -104,7 +105,17 @@ export const setUrlDB = async(
 ): Promise<void> => {
   try {
     const { videoUrl,title } = req.body;
-
+        // Lấy token từ header
+        const token = req.header("Authorization")?.split(" ")[1];
+    
+        if (!token) {
+          res.status(401).json({ message: "Unauthorized - No token provided" });
+          return 
+        }
+    
+    // Giải mã token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key") as JwtPayload;
+    const userId = decoded.id;
     if (!videoUrl) {
       res.status(400).json({ error: "Missing video URL" });
       return 
@@ -112,11 +123,11 @@ export const setUrlDB = async(
 
       // 📌 Lưu vào PostgreSQL
       const result = await pool.query(
-        "INSERT INTO videos (title, url) VALUES ($1, $2) RETURNING *",
-        [title, videoUrl]
+        "INSERT INTO videos (title, url, user_id) VALUES ($1, $2, $3) RETURNING *",
+        [title, videoUrl,userId]
       );
 
-      res.status(200).json({ message: "Upload successful", url: videoUrl });
+      res.status(200).json({ message: "Upload successful", url: result.rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to save video URL" });
