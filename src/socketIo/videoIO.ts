@@ -79,12 +79,12 @@ export default (io: Server) => {
       console.log({ userId, videoId });
       try {
         await pool.query(
-          "INSERT INTO videos (user_id, video_id) VALUES ($1, $2) ON CONFLICT (user_id, video_id) DO NOTHING",
-          [userId, videoId]
+          "UPDATE videos SET views = views + 1 WHERE id = $1",
+          [videoId]
         );
 
         const countViewsQuery =
-          "SELECT COUNT(*) AS views FROM videos WHERE video_id = $1";
+          "SELECT views FROM videos WHERE id = $1";
         const countResult = await pool.query(countViewsQuery, [videoId]);
         const views = parseInt(countResult.rows[0].views, 10) || 0;
 
@@ -97,6 +97,8 @@ export default (io: Server) => {
         }
 
         console.log(`Video ${videoId} now has ${views} views.`);
+        // 🚀 Gửi lượt xem mới nhất về FE
+        socket.emit(`video_views_updated:${videoId}`, { videoId, views });
       } catch (error) {
         console.error("Lỗi khi cập nhật view:", error);
       }
