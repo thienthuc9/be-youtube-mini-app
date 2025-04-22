@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import redisClient from "../config/redis";
 import pool from "../config/db"; // Kết nối PostgreSQL
-
+import jwt from "jsonwebtoken";
+interface AuthRequest extends Request {
+  user?: any;
+}
 export const getVideoList = async (req: Request, res: Response) => {
   try {
     const cacheKey = "videos:list"; // 🔹 Cache toàn bộ danh sách video
@@ -79,5 +82,46 @@ export const getVideoDetail = async (req: Request, res: Response) => {
     } catch (error) {
       console.error("Lỗi lấy video detail:", error);
       res.status(500).json({ message: "Server error" });
+    }
+  };
+  export const getVideoListByUserId = async (req: AuthRequest, res: Response) => {
+    try {
+     // Lấy token từ header
+        const token = req.header("Authorization")?.split(" ")[1];
+    
+        if (!token) {
+          res.status(401).json({ message: "Unauthorized - No token provided" });
+          return 
+        }
+    
+        // Giải mã token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
+        req.user = decoded;
+    
+        const userId = req.user.id;
+        const cacheKey = `videos/detail:${userId}`;
+  
+      // 📌 Kiểm tra cache Redis
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        console.log("Lấy danh sách video từ cache Redis");
+        res.json({ success: true, videos: JSON.parse(cachedData) });
+        return 
+      }
+  
+      // 📌 Lấy danh sách video từ PostgreSQL
+       const { rows } = await pool.query(
+        "SELECT id, title, thumbnail, views FROM videos WHERE user_id = $1 ORDER BY created_at DESC",
+        [userId]
+      );
+  
+      // 📌 Lưu vào Redis (TTL = 60 giây)
+      await redisClient.setEx(cacheKey, 60, JSON.stringify(rows));
+  
+      console.log("Lưu danh sách video vào cache Redis");
+      res.json({ success: true, videos: rows });
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách video:", error);
+      res.status(500).json({ message: "Lỗi server" });
     }
   };
