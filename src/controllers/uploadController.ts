@@ -48,8 +48,6 @@ export const uploadVideo = async (
       console.log(`Upload progress: ${percentCompleted}%`);
     });
 
-
-
     blobStream.on("finish", async () => {
       const publicUrl = format(
         `https://storage.googleapis.com/${bucket.name}/${blob.name}`
@@ -82,7 +80,9 @@ export const getSignedURL = async (
   res: Response
 ): Promise<void> => {
   try {
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.mp4`;
+    const fileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2)}.mp4`;
     const file = bucket.file(fileName);
 
     const [url] = await file.getSignedUrl({
@@ -99,37 +99,83 @@ export const getSignedURL = async (
 };
 
 // API insert url to DB
-export const setUrlDB = async(  
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const setUrlDB = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { videoUrl,title } = req.body;
-        // Lấy token từ header
-        const token = req.header("Authorization")?.split(" ")[1];
-    
-        if (!token) {
-          res.status(401).json({ message: "Unauthorized - No token provided" });
-          return 
-        }
-    
+    const { videoUrl, title } = req.body;
+    // Lấy token từ header
+    const token = req.header("Authorization")?.split(" ")[1];
+
+    if (!token) {
+      res.status(401).json({ message: "Unauthorized - No token provided" });
+      return;
+    }
+
     // Giải mã token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key") as JwtPayload;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your_secret_key"
+    ) as JwtPayload;
     const userId = decoded.id;
     if (!videoUrl) {
       res.status(400).json({ error: "Missing video URL" });
-      return 
+      return;
     }
 
-      // 📌 Lưu vào PostgreSQL
-      const result = await pool.query(
-        "INSERT INTO videos (title, url, user_id) VALUES ($1, $2, $3) RETURNING *",
-        [title, videoUrl,userId]
-      );
+    // 📌 Lưu vào PostgreSQL
+    const result = await pool.query(
+      "INSERT INTO videos (title, url, user_id) VALUES ($1, $2, $3) RETURNING *",
+      [title, videoUrl, userId]
+    );
 
-      res.status(200).json({ message: "Upload successful", url: result.rows[0] });
+    res.status(200).json({ message: "Upload successful", url: result.rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to save video URL" });
   }
-}
+};
+export const deleteVideo = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Lấy token từ header
+    const token = req.header("Authorization")?.split(" ")[1];
+
+    if (!token) {
+      res.status(401).json({ message: "Unauthorized - No token provided" });
+      return;
+    }
+    const { videoId } = req.body;
+    if (!videoId) {
+      res.status(400).json({ message: "Missing videoId" });
+      return;
+    }
+    // 📌 1. Lấy thông tin video từ DB
+    const result = await pool.query("SELECT url FROM videos WHERE id = $1", [
+      videoId,
+    ]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: "Video không tồn tại" });
+      return;
+    }
+
+    const videoUrl: string = result.rows[0].url;
+
+    // 📌 2. Trích xuất filePath từ URL public
+    const filePath = videoUrl.replace(
+      "https://storage.googleapis.com/app-yt-mini/",
+      ""
+    );
+
+    // 📌 3. Xóa file trên GCS
+    await bucket.file(filePath).delete();
+
+    // 📌 4. Xóa record khỏi PostgreSQL
+    await pool.query("DELETE FROM videos WHERE id = $1", [videoId]);
+    // 📌 5. Trả về response thành công
+    res.status(200).json({ message: "Đã xóa video thành công!" });
+  } catch (error) {
+    console.error("Lỗi khi xóa video:", error);
+    res.status(500).json({ message: "Xóa video thất bại!" });
+  }
+};
