@@ -12,6 +12,6 @@ const router = express.Router();
 
 router.post("/upload", uploadMiddleware, uploadVideo);
 router.get("/get-upload-url", verifyToken, getSignedURL);
-router.put("/remove-videos",verifyToken,deleteVideo)
+router.put("/remove-videos/:videoId",verifyToken,deleteVideo)
 router.post("/save-videos", setUrlDB);
 export default router;

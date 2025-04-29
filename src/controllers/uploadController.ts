@@ -145,7 +145,7 @@ export const deleteVideo = async (
       res.status(401).json({ message: "Unauthorized - No token provided" });
       return;
     }
-    const { videoId } = req.body;
+    const { videoId } = req.params;
     if (!videoId) {
       res.status(400).json({ message: "Missing videoId" });
       return;
