@@ -102,12 +102,12 @@ export const getVideoDetail = async (req: Request, res: Response) => {
         const cacheKey = `videos/detail:${userId}`;
   
       // 📌 Kiểm tra cache Redis
-      const cachedData = await redisClient.get(cacheKey);
-      if (cachedData) {
-        console.log("Lấy danh sách video từ cache Redis");
-        res.json({ success: true, videos: JSON.parse(cachedData) });
-        return 
-      }
+      // const cachedData = await redisClient.get(cacheKey);
+      // if (cachedData) {
+      //   console.log("Lấy danh sách video từ cache Redis");
+      //   res.json({ success: true, videos: JSON.parse(cachedData) });
+      //   return 
+      // }
   
       // 📌 Lấy danh sách video từ PostgreSQL
        const { rows } = await pool.query(
@@ -116,9 +116,9 @@ export const getVideoDetail = async (req: Request, res: Response) => {
       );
   
       // 📌 Lưu vào Redis (TTL = 60 giây)
-      await redisClient.setEx(cacheKey, 60, JSON.stringify(rows));
+      // await redisClient.setEx(cacheKey, 60, JSON.stringify(rows));
   
-      console.log("Lưu danh sách video vào cache Redis");
+      // console.log("Lưu danh sách video vào cache Redis");
       res.json({ success: true, videos: rows });
     } catch (error) {
       console.error("Lỗi khi lấy danh sách video:", error);
