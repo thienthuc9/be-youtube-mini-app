@@ -19,7 +19,7 @@ export const getVideoList = async (req: Request, res: Response) => {
 
     // 📌 Lấy danh sách video từ PostgreSQL
     const { rows } = await pool.query(
-      "SELECT id, title, thumbnail,views FROM videos ORDER BY created_at DESC"
+      "SELECT id, title, url,views FROM videos ORDER BY created_at DESC"
     );
 
     // 📌 Lưu vào Redis (TTL = 60 giây)
@@ -111,7 +111,7 @@ export const getVideoDetail = async (req: Request, res: Response) => {
   
       // 📌 Lấy danh sách video từ PostgreSQL
        const { rows } = await pool.query(
-        "SELECT id, title, thumbnail, views FROM videos WHERE user_id = $1 ORDER BY created_at DESC",
+        "SELECT id, title, url, views FROM videos WHERE user_id = $1 ORDER BY created_at DESC",
         [userId]
       );
   
